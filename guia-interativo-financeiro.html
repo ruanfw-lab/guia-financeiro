@@ -1,0 +1,564 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Guia Interativo de Procedimentos Financeiros - Gmad Madville</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Chosen Palette: Slate & Teal -->
+    <!-- Application Structure Plan: A aplicação foi estruturada como um painel de controle com navegação lateral fixa e uma área de conteúdo dinâmica. Esta arquitetura de informação foi escolhida para transformar um documento procedural denso em um guia de referência rápido e intuitivo. O usuário pode selecionar uma tarefa principal na barra lateral (ex: Conciliação Bancária), e a área de conteúdo exibe os detalhes, com sub-navegação (abas por banco) quando necessário. Essa abordagem modular espelha o fluxo de trabalho do analista, permitindo acesso direto à informação necessária sem a necessidade de rolagem excessiva, melhorando significativamente a usabilidade em comparação com um documento linear. -->
+    <!-- Visualization & Content Choices: Report Info: Atividades diárias, como registro de comprovantes (média de 80/dia). -> Goal: Informar sobre a carga de trabalho. -> Viz/Presentation: Gráfico de barras simples para ilustrar o volume de tarefas. -> Interaction: Tooltip ao passar o mouse. -> Justification: Oferece um resumo visual rápido da principal atividade diária na seção de visão geral. -> Library: Chart.js. Report Info: Procedimentos passo a passo com screenshots. -> Goal: Organizar e guiar. -> Presentation: Cartões de conteúdo com listas ordenadas para os passos e placeholders de imagem para os screenshots. -> Interaction: Navegação principal via menu lateral e sub-navegação via abas para alternar o conteúdo. -> Justification: Transforma um manual estático em um guia interativo, melhorando a localização e a compreensão da informação. -> Library/Method: Vanilla JS para controle de visibilidade. -->
+    <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f8fafc;
+        }
+        .nav-link {
+            transition: all 0.2s ease-in-out;
+        }
+        .nav-link.active {
+            background-color: #0d9488;
+            color: white;
+            font-weight: 600;
+        }
+        .nav-link:not(.active):hover {
+            background-color: #f1f5f9;
+            color: #0f172a;
+        }
+        .tab-link.active {
+            border-bottom: 2px solid #0d9488;
+            color: #0d9488;
+            font-weight: 600;
+        }
+        .content-section {
+            display: none;
+        }
+        .content-section.active {
+            display: block;
+        }
+        .step-card {
+            background-color: white;
+            border-radius: 0.5rem;
+            padding: 1.5rem;
+            box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
+            margin-bottom: 1.5rem;
+        }
+        .chart-container {
+            position: relative;
+            width: 100%;
+            max-width: 600px;
+            margin-left: auto;
+            margin-right: auto;
+            height: 300px;
+            max-height: 400px;
+        }
+        .gemini-modal-backdrop {
+            background-color: rgba(0, 0, 0, 0.5);
+        }
+        .gemini-modal-content {
+            max-height: 80vh;
+        }
+        .loader {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #0d9488;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body class="text-slate-800">
+
+    <div id="app" class="flex flex-col md:flex-row min-h-screen">
+        <aside class="w-full md:w-64 bg-white border-r border-slate-200 p-4 md:p-6 flex-shrink-0">
+            <h1 class="text-xl font-bold text-teal-700 mb-6">Gmad Madville</h1>
+            <nav id="main-nav" class="flex flex-row md:flex-col gap-2 overflow-x-auto md:overflow-x-visible">
+                <a href="#visao-geral" class="nav-link p-3 rounded-lg text-slate-700 flex items-center gap-3 active flex-shrink-0">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>
+                    <span>Visão Geral</span>
+                </a>
+                <a href="#envio-remessa" class="nav-link p-3 rounded-lg text-slate-700 flex items-center gap-3 flex-shrink-0">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" /></svg>
+                    <span>Envio de Remessa</span>
+                </a>
+                <a href="#baixa-retorno" class="nav-link p-3 rounded-lg text-slate-700 flex items-center gap-3 flex-shrink-0">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 17l-4 4m0 0l-4-4m4 4V3" /></svg>
+                    <span>Baixa de Retorno</span>
+                </a>
+                <a href="#conciliacao-bancaria" class="nav-link p-3 rounded-lg text-slate-700 flex items-center gap-3 flex-shrink-0">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" /></svg>
+                    <span>Conciliação</span>
+                </a>
+                <a href="#baixa-cartoes" class="nav-link p-3 rounded-lg text-slate-700 flex items-center gap-3 flex-shrink-0">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" /></svg>
+                    <span>Baixa de Cartões</span>
+                </a>
+                 <a href="#outros" class="nav-link p-3 rounded-lg text-slate-700 flex items-center gap-3 flex-shrink-0">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16" /></svg>
+                    <span>Outros Processos</span>
+                </a>
+            </nav>
+        </aside>
+
+        <main class="flex-1 p-4 md:p-8 overflow-y-auto">
+            <div id="visao-geral" class="content-section active">
+                <h2 class="text-3xl font-bold mb-2 text-slate-800">Guia Interativo de Procedimentos Financeiros</h2>
+                <p class="text-slate-600 mb-8">Bem-vinda, Bianca! Este guia interativo foi criado para simplificar e documentar suas rotinas financeiras diárias na Gmad Madville. Agora com a ajuda da IA, você pode solucionar problemas e obter explicações instantâneas. Use a navegação ao lado para explorar cada procedimento.</p>
+                
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                    <div class="step-card">
+                        <h3 class="font-bold text-lg mb-4 text-teal-700">Volume de Atividades Diárias</h3>
+                        <p class="text-slate-600 mb-4">A rotina de conciliação é a mais intensa, exigindo a verificação de um grande volume de comprovantes.</p>
+                        <div class="chart-container">
+                            <canvas id="dailyTasksChart"></canvas>
+                        </div>
+                    </div>
+                     <div class="step-card">
+                        <h3 class="font-bold text-lg mb-4 text-teal-700">✨ Glossário Inteligente</h3>
+                        <p class="text-slate-600 mb-4">Tem dúvida sobre algum termo financeiro? Digite abaixo e obtenha uma explicação clara e rápida.</p>
+                        <div class="flex gap-2">
+                            <input type="text" id="glossary-term" placeholder="Ex: Francesinha, DDA" class="w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500">
+                            <button id="glossary-btn" class="bg-teal-600 text-white font-semibold px-4 py-2 rounded-md hover:bg-teal-700 transition-colors">Explicar</button>
+                        </div>
+                        <div id="glossary-output" class="mt-4 text-slate-700 bg-slate-50 p-4 rounded-md hidden"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="envio-remessa" class="content-section">
+                <h2 class="text-3xl font-bold mb-6 text-slate-800">Envio de Remessa de Boletos (Sicredi)</h2>
+                <p class="text-slate-600 mb-8">Este processo é executado diariamente para enviar os boletos gerados ao banco. Siga os passos abaixo para garantir que todos os boletos sejam processados corretamente.</p>
+                <div id="context-envio-remessa" class="step-card">
+                    <div class="flex justify-between items-center mb-4">
+                        <h3 class="font-bold text-lg text-teal-700">Passo a Passo</h3>
+                        <button class="gemini-troubleshoot-btn bg-amber-500 text-white font-semibold px-4 py-2 rounded-md hover:bg-amber-600 text-sm" data-context-id="context-envio-remessa">✨ Solucionar Problema</button>
+                    </div>
+                    <ol class="list-decimal list-inside space-y-6 text-slate-700">
+                        <li>
+                            <strong class="font-semibold">Verificar Boletos Gerados:</strong>
+                            <p class="ml-4 mt-1">Acesse: `Financeiro > Cobrança Bancária > Impressão de Boletos/Recibos/Duplicatas a Receber`. Confirme se todos os boletos do dia anterior foram gerados. Caso encontre algum pendente, gere-o antes de prosseguir.</p>
+                        </li>
+                        <li>
+                            <strong class="font-semibold">Gerar Arquivo de Remessa:</strong>
+                            <p class="ml-4 mt-1">Acesse: `Financeiro > Cobrança Bancária > Gera Remessa de Cobrança Bancária`. Nas "Informações da Cobrança", preencha os dados do banco (748 - Sicredi), selecione "Somente para os títulos não gerados" e a opção "Montar/Gravar".</p>
+                        </li>
+                        <li>
+                            <strong class="font-semibold">Filtrar Títulos e Salvar:</strong>
+                            <p class="ml-4 mt-1">Na aba "Filtros para os Títulos", defina o estabelecimento (1001), o portador (15 - SICREDI) e a data de emissão para o dia anterior. Execute e salve o arquivo de remessa gerado em uma pasta local.</p>
+                        </li>
+                         <li>
+                            <strong class="font-semibold">Transmitir ao Banco:</strong>
+                            <p class="ml-4 mt-1">Acesse o portal do Banco Sicredi, navegue até a seção de **Cobrança** e use a opção para **Transferir Arquivo** para fazer o upload da remessa.</p>
+                        </li>
+                    </ol>
+                </div>
+            </div>
+            
+            <div id="baixa-retorno" class="content-section">
+                <h2 class="text-3xl font-bold mb-6 text-slate-800">Baixa de Retorno de Boletos</h2>
+                <p class="text-slate-600 mb-8">Este processo consiste em baixar os arquivos de retorno dos bancos para conciliar os pagamentos recebidos no sistema. O procedimento varia ligeiramente entre os bancos.</p>
+                 <div id="context-baixa-retorno" class="step-card">
+                    <div class="flex justify-between items-center mb-4">
+                        <h3 class="font-bold text-lg text-teal-700">Procedimento por Banco</h3>
+                        <button class="gemini-troubleshoot-btn bg-amber-500 text-white font-semibold px-4 py-2 rounded-md hover:bg-amber-600 text-sm" data-context-id="context-baixa-retorno">✨ Solucionar Problema</button>
+                    </div>
+                    <div class="space-y-4">
+                        <details class="group bg-slate-50 p-4 rounded-lg">
+                            <summary class="font-semibold cursor-pointer group-hover:text-teal-600">Sicredi</summary>
+                            <ol class="list-decimal list-inside space-y-4 mt-4 text-slate-700">
+                                <li><strong>Download do Arquivo:</strong> No portal do Sicredi, acesse `Cobrança > Arquivos de Retorno` e baixe o arquivo do dia.</li>
+                                <li><strong>Leitura no Sistema:</strong> Acesse `Financeiro > Cobrança Bancária > Ler Retorno de Remessa de Cobrança`. Informe o estabelecimento (1001) e selecione o arquivo baixado.</li>
+                                <li><strong>Verificação (Francesinha):</strong> Emita o relatório "Financeiro Francesinha" no portal do banco para a mesma data e compare o valor total para garantir a exatidão.</li>
+                            </ol>
+                        </details>
+                        <details class="group bg-slate-50 p-4 rounded-lg">
+                            <summary class="font-semibold cursor-pointer group-hover:text-teal-600">Caixa e Bradesco (CNPJ Antigo)</summary>
+                             <ol class="list-decimal list-inside space-y-4 mt-4 text-slate-700">
+                                <li><strong>Caixa:</strong> O arquivo de retorno é gerado pelo aplicativo "Conexão CAIXA". A validação dos valores é feita no portal "e-Cobrança CAIXA".</li>
+                                <li><strong>Bradesco:</strong> O arquivo de retorno é baixado na seção "Transmissão de Arquivos" do portal do banco.</li>
+                            </ol>
+                        </details>
+                    </div>
+                 </div>
+            </div>
+
+            <div id="conciliacao-bancaria" class="content-section">
+                 <h2 class="text-3xl font-bold mb-6 text-slate-800">Conciliação Bancária</h2>
+                 <p class="text-slate-600 mb-8">Processo diário para garantir que o extrato bancário e o sistema estejam alinhados. Selecione o banco para ver as instruções específicas.</p>
+                 
+                <div class="border-b border-slate-200 mb-6">
+                    <nav id="conciliacao-tabs" class="-mb-px flex space-x-6" aria-label="Tabs">
+                        <button data-target="conc-sicredi" class="tab-link whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm text-slate-500 hover:text-teal-600 hover:border-gray-300 active">Sicredi</button>
+                        <button data-target="conc-caixa" class="tab-link whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm text-slate-500 hover:text-teal-600 hover:border-gray-300">Caixa</button>
+                        <button data-target="conc-safra" class="tab-link whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm text-slate-500 hover:text-teal-600 hover:border-gray-300">Safra</button>
+                         <button data-target="conc-bradesco" class="tab-link whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm text-slate-500 hover:text-teal-600 hover:border-gray-300">Bradesco</button>
+                    </nav>
+                </div>
+
+                <div id="conc-sicredi" class="tab-content active">
+                     <div id="context-conc-sicredi" class="step-card">
+                        <div class="flex justify-between items-center mb-4">
+                            <h3 class="font-bold text-lg text-teal-700">Conciliação Sicredi (CNPJ 1001)</h3>
+                            <button class="gemini-troubleshoot-btn bg-amber-500 text-white font-semibold px-4 py-2 rounded-md hover:bg-amber-600 text-sm" data-context-id="context-conc-sicredi">✨ Solucionar Problema</button>
+                        </div>
+                        <ol class="list-decimal list-inside space-y-6 text-slate-700">
+                            <li><strong>Exportar Extrato:</strong> No portal Sicredi, exporte o extrato do dia anterior em formato Excel.</li>
+                            <li><strong>Atualizar Planilha de Controle:</strong> Copie os dados para a planilha mensal (`DEP SICREDI`). Organize e marque "OK" para cada comprovante verificado.</li>
+                            <li><strong>Baixar PIX no Sistema:</strong> Acesse `Financeiro > Duplicatas a Receber > Baixa de Duplicatas a Receber`. Localize a duplicata, informe o portador **15 (Sicredi)** e o valor.</li>
+                            <li><strong>Lançar Recebimentos Não Identificados:</strong> Se houver crédito sem comprovante, lance como adiantamento: `Processos > Notas > Adiantamento`. Use a configuração **273** e pessoa **21979**.</li>
+                            <li><strong>Lançar Despesas (Tarifas):</strong> Acesse `Processos > Notas > Despesas/Receitas`. Lance as tarifas usando a configuração **24**, pessoa **19917**, e analítica **394**.</li>
+                            <li><strong>Verificação Final de Saldo:</strong> Acesse `Relatórios > Financeiro > Extrato do Portador` e compare o saldo do sistema com o extrato bancário.</li>
+                        </ol>
+                    </div>
+                </div>
+                <div id="conc-caixa" class="tab-content">
+                    <div id="context-conc-caixa" class="step-card">
+                        <div class="flex justify-between items-center mb-4">
+                            <h3 class="font-bold text-lg text-teal-700">Conciliação Caixa</h3>
+                            <button class="gemini-troubleshoot-btn bg-amber-500 text-white font-semibold px-4 py-2 rounded-md hover:bg-amber-600 text-sm" data-context-id="context-conc-caixa">✨ Solucionar Problema</button>
+                        </div>
+                         <ol class="list-decimal list-inside space-y-6 text-slate-700">
+                            <li><strong>Transferência/PIX:</strong> O processo é o mesmo do Sicredi, mas na hora da baixa, utilizar o portador **20 (Caixa)**.</li>
+                            <li><strong>Boletos (CNPJ Antigo):</strong> Após baixar o retorno no estabelecimento 501, realize uma transferência de portadores do valor para o estabelecimento 1001.</li>
+                            <li><strong>Rendimentos de Aplicação:</strong> A Caixa pode ter rendimentos que não aparecem claramente no extrato. Se houver diferença no fechamento, lance o valor como receita em `Financeiro > Lançamentos Financeiros` com a analítica **218 (RENDIMENTOS DE APLICACOES)** para ajustar o saldo.</li>
+                        </ol>
+                    </div>
+                </div>
+                <div id="conc-safra" class="tab-content">
+                     <div id="context-conc-safra" class="step-card">
+                        <div class="flex justify-between items-center mb-4">
+                            <h3 class="font-bold text-lg text-teal-700">Conciliação Safra</h3>
+                            <button class="gemini-troubleshoot-btn bg-amber-500 text-white font-semibold px-4 py-2 rounded-md hover:bg-amber-600 text-sm" data-context-id="context-conc-safra">✨ Solucionar Problema</button>
+                        </div>
+                         <ol class="list-decimal list-inside space-y-6 text-slate-700">
+                            <li><strong>PIX QR Code:</strong> Valores de PIX da maquininha (Safrapay) são lançados automaticamente quando a nota é faturada. O trabalho é apenas verificar se os valores no sistema conferem com o extrato bancário.</li>
+                             <li><strong>Pagamentos DDA:</strong> Geralmente lançados pela gerência. A tarefa é verificar se todos os pagamentos estão refletidos no sistema.</li>
+                            <li><strong>Ajuste de Caixa:</strong> Se ao final houver uma pequena diferença (centavos), provavelmente de taxas de PIX QR code, faça um ajuste em `Financeiro > Lançamentos Financeiros`. Use a analítica **220 (SOBRA DE CAIXA)** para receita ou **1264** para despesa.</li>
+                        </ol>
+                    </div>
+                </div>
+                <div id="conc-bradesco" class="tab-content">
+                     <div id="context-conc-bradesco" class="step-card">
+                        <div class="flex justify-between items-center mb-4">
+                            <h3 class="font-bold text-lg text-teal-700">Conciliação Bradesco</h3>
+                            <button class="gemini-troubleshoot-btn bg-amber-500 text-white font-semibold px-4 py-2 rounded-md hover:bg-amber-600 text-sm" data-context-id="context-conc-bradesco">✨ Solucionar Problema</button>
+                        </div>
+                         <ol class="list-decimal list-inside space-y-6 text-slate-700">
+                            <li><strong>Conferência do Extrato:</strong> Imprima o extrato e marque "OK" nos lançamentos já processados. Circule o que precisa ser lançado.</li>
+                             <li><strong>Excelência Cobrança:</strong> Quando houver entrada da "Excelência", notificar a responsável para que ela realize as baixas.</li>
+                            <li><strong>PagSeguro:</strong> Quando há recebimento da PagSeguro, é necessário fazer uma transferência do portador **16 (CREDITO 70/30)** para o portador **17 (Banco Bradesco)**.</li>
+                            <li><strong>Fechamento:</strong> Anote as considerações de valores pendentes (ex: PIX QR code da entrega ainda não lançado) para justificar a diferença entre o extrato e o sistema no fechamento do dia.</li>
+                        </ol>
+                    </div>
+                </div>
+            </div>
+
+             <div id="baixa-cartoes" class="content-section">
+                <h2 class="text-3xl font-bold mb-6 text-slate-800">Baixa de Cartões</h2>
+                <p class="text-slate-600 mb-8">A conciliação dos recebimentos de cartão é feita para as adquirentes Cielo e Safra. Cada uma possui um fluxo específico.</p>
+                <div id="context-baixa-cartoes" class="space-y-4">
+                    <div class="flex justify-end mb-4">
+                         <button class="gemini-troubleshoot-btn bg-amber-500 text-white font-semibold px-4 py-2 rounded-md hover:bg-amber-600 text-sm" data-context-id="context-baixa-cartoes">✨ Solucionar Problema</button>
+                    </div>
+                    <details class="group bg-slate-50 p-4 rounded-lg">
+                        <summary class="font-semibold cursor-pointer group-hover:text-teal-600">Cielo (Automatizada)</summary>
+                        <ol class="list-decimal list-inside space-y-4 mt-4 text-slate-700">
+                            <li><strong>Obter Arquivo:</strong> Acesse o portal **Canal EDI** da Cielo, solicite a "Redisponibilização" para a data e baixe o arquivo com final **04**.</li>
+                            <li><strong>Conciliar no Sistema:</strong> Acesse `Financeiro > Cartão e Outros > Conciliação de Cartão`. Selecione o layout "CIELO", defina um período de vencimento amplo e importe o arquivo.</li>
+                            <li><strong>Ajustes Manuais:</strong>
+                                <ul class="list-disc list-inside ml-4">
+                                    <li>**Divergências (Rosa):** Baixe manualmente em `Acerto de Cartão`.</li>
+                                    <li>**Não Encontrados (Branco):** Lance como `Recebimentos Não Identificados` (analítica 1229).</li>
+                                </ul>
+                            </li>
+                             <li><strong>Antecipações:</strong> Na tela de conciliação, filtre `Tp.lanc 11`, some o total e faça uma transferência do **Portador 17 (Bradesco)** para o **Portador 23 (ANTECIPAÇÃO CIELO)**.</li>
+                        </ol>
+                    </details>
+                    <details class="group bg-slate-50 p-4 rounded-lg">
+                        <summary class="font-semibold cursor-pointer group-hover:text-teal-600">Safra (Antecipação Consolidada)</summary>
+                         <ol class="list-decimal list-inside space-y-4 mt-4 text-slate-700">
+                            <li><strong>Obter Relatório:</strong> No portal Safra, acesse `Safrapay > Consultar Histórico de Antecipações` e exporte o relatório em Excel (XLS) para a data do crédito.</li>
+                            <li><strong>Baixa e Lançamentos:</strong>
+                                 <ul class="list-disc list-inside ml-4">
+                                     <li>Baixe os cartões antecipados no portador **Safra Antecipação**.</li>
+                                     <li>Faça uma transferência do valor líquido recebido do portador **Safra Antecipação** para o **Safra (18)**.</li>
+                                     <li>Lance a diferença (taxas) como despesa (`Processos > Notas > Despesas/Receitas`), usando a analítica **1280 (DESPESAS ANT CARTAO)**.</li>
+                                 </ul>
+                            </li>
+                        </ol>
+                    </details>
+                </div>
+            </div>
+
+            <div id="outros" class="content-section">
+                <h2 class="text-3xl font-bold mb-6 text-slate-800">Outros Processos Financeiros</h2>
+                <p class="text-slate-600 mb-8">Aqui estão outros procedimentos importantes que fazem parte da rotina financeira.</p>
+                <div id="context-outros" class="space-y-4">
+                    <div class="flex justify-end mb-4">
+                         <button class="gemini-troubleshoot-btn bg-amber-500 text-white font-semibold px-4 py-2 rounded-md hover:bg-amber-600 text-sm" data-context-id="context-outros">✨ Solucionar Problema</button>
+                    </div>
+                     <details class="group bg-slate-50 p-4 rounded-lg">
+                        <summary class="font-semibold cursor-pointer group-hover:text-teal-600">Liberação de Depósito Antecipado</summary>
+                         <ol class="list-decimal list-inside space-y-4 mt-4 text-slate-700">
+                            <li>Acesse o **Cadastro de Pessoas** no sistema.</li>
+                            <li>Localize o cliente pelo código e abra o cadastro.</li>
+                            <li>Na aba "Info Cliente", altere o campo **Conceito** para **13 - Depósito Antecipado**.</li>
+                        </ol>
+                    </details>
+                    <details class="group bg-slate-50 p-4 rounded-lg">
+                        <summary class="font-semibold cursor-pointer group-hover:text-teal-600">Transferência entre Portadores</summary>
+                         <ol class="list-decimal list-inside space-y-4 mt-4 text-slate-700">
+                            <li>Acesse `Financeiro > Transferências > Transferência entre Portadores`.</li>
+                            <li>**Origem:** Informe o estabelecimento, o portador de onde o dinheiro saiu e a analítica **1212 (SAIDA DO CAIXA)**.</li>
+                            <li>**Destino:** Informe o estabelecimento, o portador que recebeu o dinheiro e a analítica **1211 (ENTRADA NO CAIXA)**.</li>
+                             <li>Preencha o valor, a data e salve.</li>
+                        </ol>
+                    </details>
+                    <details class="group bg-slate-50 p-4 rounded-lg">
+                        <summary class="font-semibold cursor-pointer group-hover:text-teal-600">Lançamento de Folha de Pagamento (Salários, Férias, Rescisões)</summary>
+                         <ol class="list-decimal list-inside space-y-4 mt-4 text-slate-700">
+                            <li>Todos os pagamentos de funcionários são feitos pela conta **Sicredi JJL (1004)**, portador **5**.</li>
+                            <li>Acesse `Processos > Notas > Despesas/Receitas` para lançar o valor total por planta.</li>
+                            <li>Use as analíticas corretas: **SALARIOS (1203)**, **SALARIOS (SOLUCOES) (1316)**, **SALARIO (CURITIBA) (1327)**. Para férias e rescisões, use as analíticas específicas (ex: **FERIAS (SOLUCOES) (1318)**).</li>
+                             <li>Após lançar a despesa, acesse `Financeiro > Duplicatas a Pagar > Baixa de Duplicatas a Pagar` e baixe o título informando o portador **5 (Sicredi)**.</li>
+                        </ol>
+                    </details>
+                </div>
+            </div>
+
+        </main>
+    </div>
+
+    <!-- Gemini Modal -->
+    <div id="gemini-modal" class="fixed inset-0 z-50 flex items-center justify-center p-4 gemini-modal-backdrop hidden">
+        <div class="bg-white rounded-lg shadow-2xl w-full max-w-2xl gemini-modal-content flex flex-col">
+            <div class="flex justify-between items-center p-4 border-b">
+                <h3 class="text-lg font-bold text-teal-700">✨ Assistente de Soluções</h3>
+                <button id="gemini-modal-close" class="text-slate-500 hover:text-slate-800">&times;</button>
+            </div>
+            <div class="p-6 overflow-y-auto flex-1">
+                <div id="gemini-modal-input-section">
+                    <label for="problem-description" class="block text-sm font-medium text-slate-700 mb-2">Descreva o problema que você está enfrentando:</label>
+                    <textarea id="problem-description" rows="4" class="w-full p-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500" placeholder="Ex: O saldo final do sistema não bate com o extrato do banco por uma diferença de R$ 19,95."></textarea>
+                </div>
+                <div id="gemini-modal-output-section" class="mt-4 hidden">
+                     <div id="gemini-loader" class="flex flex-col items-center justify-center text-center p-8">
+                        <div class="loader"></div>
+                        <p class="mt-4 text-slate-600">Analisando o procedimento e seu problema... Por favor, aguarde.</p>
+                    </div>
+                    <div id="gemini-response" class="text-slate-700 bg-slate-50 p-4 rounded-md whitespace-pre-wrap"></div>
+                </div>
+            </div>
+            <div class="p-4 border-t flex justify-end">
+                <button id="gemini-modal-submit" class="bg-teal-600 text-white font-semibold px-5 py-2 rounded-md hover:bg-teal-700 transition-colors">Analisar Problema</button>
+            </div>
+        </div>
+    </div>
+
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const navLinks = document.querySelectorAll('#main-nav a');
+            const contentSections = document.querySelectorAll('.content-section');
+            
+            function setActiveSection(hash) {
+                navLinks.forEach(link => {
+                    link.classList.toggle('active', link.getAttribute('href') === hash);
+                });
+                contentSections.forEach(section => {
+                    section.classList.toggle('active', '#' + section.id === hash);
+                });
+            }
+
+            navLinks.forEach(link => {
+                link.addEventListener('click', (event) => {
+                    event.preventDefault();
+                    const targetHash = link.getAttribute('href');
+                    window.location.hash = targetHash;
+                });
+            });
+            
+            window.addEventListener('hashchange', () => {
+                const hash = window.location.hash || '#visao-geral';
+                 setActiveSection(hash);
+            });
+
+            const initialHash = window.location.hash || '#visao-geral';
+            setActiveSection(initialHash);
+
+            const conciliacaoTabs = document.querySelectorAll('#conciliacao-tabs .tab-link');
+            const conciliacaoContents = document.querySelectorAll('#conciliacao-bancaria .tab-content');
+
+            conciliacaoTabs.forEach(tab => {
+                tab.addEventListener('click', () => {
+                    const target = tab.dataset.target;
+                    conciliacaoTabs.forEach(t => t.classList.remove('active'));
+                    tab.classList.add('active');
+                    conciliacaoContents.forEach(content => {
+                        content.classList.toggle('active', content.id === target);
+                    });
+                });
+            });
+            
+            const ctx = document.getElementById('dailyTasksChart');
+            if(ctx) {
+                new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels: ['Comprovantes Registrados', 'Baixas de Boletos', 'Liberações', 'Lançamentos de Despesa'],
+                        datasets: [{
+                            label: 'Média de Tarefas Diárias',
+                            data: [80, 15, 5, 10],
+                            backgroundColor: ['rgba(13, 148, 136, 0.6)','rgba(59, 130, 246, 0.6)','rgba(234, 179, 8, 0.6)','rgba(239, 68, 68, 0.6)'],
+                            borderColor: ['rgba(13, 148, 136, 1)','rgba(59, 130, 246, 1)','rgba(234, 179, 8, 1)','rgba(239, 68, 68, 1)'],
+                            borderWidth: 1
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        scales: { y: { beginAtZero: true } },
+                        plugins: { legend: { display: false }, title: { display: true, text: 'Estimativa de Volume por Atividade' } }
+                    }
+                });
+            }
+
+            // Gemini API Integration
+            const modal = document.getElementById('gemini-modal');
+            const closeModalBtn = document.getElementById('gemini-modal-close');
+            const submitModalBtn = document.getElementById('gemini-modal-submit');
+            const troubleshootBtns = document.querySelectorAll('.gemini-troubleshoot-btn');
+            const problemDescriptionTextarea = document.getElementById('problem-description');
+            const inputSection = document.getElementById('gemini-modal-input-section');
+            const outputSection = document.getElementById('gemini-modal-output-section');
+            const loader = document.getElementById('gemini-loader');
+            const responseContainer = document.getElementById('gemini-response');
+            let currentContext = '';
+
+            async function callGemini(prompt) {
+                const apiKey = ""; 
+                const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+                
+                const payload = {
+                    contents: [{ role: "user", parts: [{ text: prompt }] }]
+                };
+
+                try {
+                    const response = await fetch(apiUrl, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+
+                    const result = await response.json();
+                    
+                    if (result.candidates && result.candidates.length > 0 && result.candidates[0].content && result.candidates[0].content.parts && result.candidates[0].content.parts.length > 0) {
+                        return result.candidates[0].content.parts[0].text;
+                    } else {
+                        return "Não foi possível obter uma resposta. A estrutura da resposta da API é inesperada.";
+                    }
+                } catch (error) {
+                    console.error("Erro ao chamar a API Gemini:", error);
+                    return `Ocorreu um erro ao tentar obter ajuda da IA. Detalhes: ${error.message}`;
+                }
+            }
+            
+            function showModal() {
+                modal.classList.remove('hidden');
+                inputSection.classList.remove('hidden');
+                outputSection.classList.add('hidden');
+                loader.classList.add('hidden');
+                responseContainer.classList.add('hidden');
+                problemDescriptionTextarea.value = '';
+            }
+
+            function hideModal() {
+                modal.classList.add('hidden');
+            }
+
+            troubleshootBtns.forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const contextId = btn.dataset.contextId;
+                    const contextElement = document.getElementById(contextId);
+                    currentContext = contextElement ? contextElement.innerText : 'Contexto não encontrado.';
+                    showModal();
+                });
+            });
+
+            closeModalBtn.addEventListener('click', hideModal);
+            modal.addEventListener('click', (e) => {
+                if (e.target === modal) {
+                    hideModal();
+                }
+            });
+
+            submitModalBtn.addEventListener('click', async () => {
+                const userProblem = problemDescriptionTextarea.value;
+                if (!userProblem.trim()) {
+                    alert('Por favor, descreva o seu problema.');
+                    return;
+                }
+
+                inputSection.classList.add('hidden');
+                outputSection.classList.remove('hidden');
+                loader.classList.remove('hidden');
+                responseContainer.classList.add('hidden');
+
+                const prompt = `Você é um especialista sênior em processos financeiros da Gmad Madville. Um analista está executando um procedimento e encontrou um problema.
+
+                **Procedimento Padrão:**
+                ---
+                ${currentContext}
+                ---
+
+                **Problema Reportado pelo Analista:**
+                "${userProblem}"
+
+                Com base no procedimento padrão e no problema descrito, forneça uma análise clara e uma sugestão de passo a passo para resolver a questão. Comece com uma possível causa e depois liste as etapas para verificação e solução. Seja direto e prático.`;
+                
+                const result = await callGemini(prompt);
+
+                loader.classList.add('hidden');
+                responseContainer.innerText = result;
+                responseContainer.classList.remove('hidden');
+            });
+
+            // Glossary Feature
+            const glossaryBtn = document.getElementById('glossary-btn');
+            const glossaryTermInput = document.getElementById('glossary-term');
+            const glossaryOutput = document.getElementById('glossary-output');
+
+            glossaryBtn.addEventListener('click', async () => {
+                const term = glossaryTermInput.value;
+                if (!term.trim()) {
+                    alert('Por favor, digite um termo.');
+                    return;
+                }
+                
+                glossaryOutput.classList.remove('hidden');
+                glossaryOutput.innerHTML = '<div class="flex items-center justify-center"><div class="loader !w-6 !h-6"></div><span class="ml-2">Explicando...</span></div>';
+
+                const prompt = `Explique o termo financeiro ou de sistema "${term}" de forma simples e direta, no contexto de uma empresa como a Gmad Madville no Brasil. A explicação deve ser fácil para um analista financeiro júnior entender.`;
+
+                const result = await callGemini(prompt);
+                glossaryOutput.innerText = result;
+            });
+        });
+    </script>
+
+</body>
+</html>
